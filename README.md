@@ -6,7 +6,6 @@ A **production-ready Spring Boot microservices architecture** for scalable e-com
 
 - **Microservices Architecture** – Decoupled services with independent databases
 - **Spring Cloud Ecosystem** – Eureka service discovery, API Gateway, OpenFeign clients
-- **Distributed Systems** – Async messaging (RabbitMQ), inter-service communication
 - **Security** – JWT authentication, Spring Security, encrypted token validation
 - **Full-Stack** – Java backend + React frontend with modern tooling
 - **Scalability** – Stateless services, load balancing, event-driven design
@@ -19,7 +18,6 @@ A **production-ready Spring Boot microservices architecture** for scalable e-com
 | **API** | Spring Cloud Gateway, REST APIs, OpenFeign |
 | **Auth** | JWT (JJWT 0.13), Spring Security |
 | **Database** | MySQL 8.0+ (service isolation) |
-| **Async** | RabbitMQ, Spring AMQP |
 | **Frontend** | React, Vite, JavaScript |
 | **Build** | Maven 3.8+ |
 
@@ -71,11 +69,10 @@ cd frontend && npm install && npm run dev
 ✅ JWT token-based authentication with refresh mechanism  
 ✅ API Gateway with centralized routing and request filtering  
 ✅ Service-to-service communication with Feign clients  
-✅ Asynchronous event processing with RabbitMQ  
 ✅ Microservices with database per service isolation  
 ✅ Eureka-based dynamic service discovery  
 ✅ RESTful API design with proper HTTP status codes  
-✅ Database transaction management & JPA ORM  
+✅ Database transaction management & Hibernate ORM  
 
 ## 💡 Architecture Highlights
 
@@ -87,23 +84,5 @@ public interface ProductClient {
     ProductDTO getProduct(@PathVariable Long id);
 }
 ```
-
-**Asynchronous Messaging:**
-```java
-rabbitTemplate.convertAndSend("order.exchange", "order.created", event);
-
-@RabbitListener(queues = "notification.queue")
-public void handleOrderCreated(OrderEvent event) { ... }
-```
-
-## 📊 Why This Matters
-
-- **Enterprise-Grade:** Real-world microservices patterns (service discovery, API gateways)
-- **Scalability:** Stateless design, horizontal scaling, load balancing
-- **Best Practices:** Clean code, proper separation of concerns
-- **Full-Stack Skills:** Backend architecture + frontend integration
-- **DevOps-Ready:** Multi-module Maven, containerizable, cloud-native design
-
----
 
 **Built by:** [@omethperera](https://github.com/omethperera)
