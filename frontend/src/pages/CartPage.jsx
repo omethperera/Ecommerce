@@ -1,0 +1,401 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  getCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart,
+  checkout,
+} from "../api/orderApi";
+
+function CartPage() {
+  const [cart, setCart] = useState(null);
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [quantities, setQuantities] = useState({});
+  const navigate = useNavigate();
+  const userId = localStorage.getItem("userId");
+
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const response = await getCart(userId);
+        setCart(response.data);
+
+        const qtyMap = {};
+        response.data.items.forEach((item) => {
+          qtyMap[item.itemId] = item.quantity;
+        });
+        setQuantities(qtyMap);
+      } catch (error) {
+        console.error(error);
+        setCart(null);
+      }
+    };
+
+    if (userId) {
+      fetchCart();
+    }
+  }, [userId]);
+
+  const loadCart = async () => {
+    try {
+      const response = await getCart(userId);
+      setCart(response.data);
+
+      const qtyMap = {};
+      response.data.items.forEach((item) => {
+        qtyMap[item.itemId] = item.quantity;
+      });
+      setQuantities(qtyMap);
+    } catch (error) {
+      console.error(error);
+      setCart(null);
+    }
+  };
+
+  const handleQuantityInputChange = (itemId, value) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [itemId]: value,
+    }));
+  };
+
+  const handleUpdateQuantity = async (itemId) => {
+    const quantity = Number(quantities[itemId]);
+
+    if (!quantity || quantity < 1) {
+      alert("Quantity must be at least 1");
+      return;
+    }
+
+    try {
+      await updateCartItem(userId, itemId, { quantity });
+      await loadCart();
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to update quantity");
+    }
+  };
+
+  const handleRemoveItem = async (itemId) => {
+    try {
+      await removeCartItem(userId, itemId);
+      await loadCart();
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to remove item");
+    }
+  };
+
+  const handleClearCart = async () => {
+    try {
+      await clearCart(userId);
+      await loadCart();
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Failed to clear cart");
+    }
+  };
+  const handleCheckout = async () => {
+    if (!shippingAddress.trim()) {
+      return;
+    }
+
+    try {
+      const response = await checkout(userId, { shippingAddress });
+
+      const orderId = response?.data?.orderId;
+
+      if (!orderId) {
+        console.log("CHECKOUT RESPONSE DATA:", response.data);
+        return;
+      }
+
+      navigate(`/payment/${orderId}`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <div style={styles.headerRow}>
+          <div>
+            <p style={styles.badge}>Buyer Cart</p>
+            <h1 style={styles.title}>My Cart</h1>
+            <p style={styles.subtitle}>
+              Review your selected products, update quantities, and proceed to checkout.
+            </p>
+          </div>
+
+          <button style={styles.backButton} onClick={() => navigate("/user-dashboard")}>
+            Back to Dashboard
+          </button>
+        </div>
+
+        {!cart || !cart.items || cart.items.length === 0 ? (
+          <div style={styles.emptyCard}>
+            <h3 style={styles.emptyTitle}>Your cart is empty</h3>
+            <p style={styles.emptyText}>Add products first to continue with checkout.</p>
+          </div>
+        ) : (
+          <div style={styles.layout}>
+            <div style={styles.itemsColumn}>
+              {cart.items.map((item) => (
+                <div key={item.itemId} style={styles.itemCard}>
+                  <img
+                    src={item.productImageUrl}
+                    alt={item.productName}
+                    style={styles.itemImage}
+                  />
+
+                  <div style={styles.itemContent}>
+                    <h3 style={styles.itemTitle}>{item.productName}</h3>
+                    <p style={styles.itemMeta}>Unit Price: Rs. {item.unitPrice}</p>
+                    <p style={styles.itemMeta}>Subtotal: Rs. {item.subtotal}</p>
+
+                    <div style={styles.quantityRow}>
+                      <input
+                        type="number"
+                        min="1"
+                        value={quantities[item.itemId] ?? item.quantity}
+                        onChange={(e) =>
+                          handleQuantityInputChange(item.itemId, e.target.value)
+                        }
+                        style={styles.quantityInput}
+                      />
+
+                      <button
+                        style={styles.secondaryButton}
+                        onClick={() => handleUpdateQuantity(item.itemId)}
+                      >
+                        Update
+                      </button>
+
+                      <button
+                        style={styles.removeButton}
+                        onClick={() => handleRemoveItem(item.itemId)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={styles.summaryCard}>
+              <h3 style={styles.summaryTitle}>Order Summary</h3>
+              <p style={styles.summaryAmount}>Total: Rs. {cart.totalAmount}</p>
+
+              <input
+                type="text"
+                placeholder="Enter shipping address"
+                value={shippingAddress}
+                onChange={(e) => setShippingAddress(e.target.value)}
+                style={styles.addressInput}
+              />
+
+              <div style={styles.summaryActions}>
+                <button style={styles.primaryButton} onClick={handleCheckout}>
+                  Checkout
+                </button>
+
+                <button style={styles.secondaryButton} onClick={handleClearCart}>
+                  Clear Cart
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(135deg, #0b1020, #111827)",
+    padding: "24px",
+  },
+  container: {
+    maxWidth: "1180px",
+    margin: "0 auto",
+  },
+  headerRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "20px",
+    flexWrap: "wrap",
+    marginBottom: "24px",
+  },
+  badge: {
+    color: "#60a5fa",
+    fontSize: "13px",
+    marginBottom: "10px",
+    letterSpacing: "0.5px",
+  },
+  title: {
+    color: "#f9fafb",
+    fontSize: "36px",
+    fontWeight: "700",
+    marginBottom: "10px",
+  },
+  subtitle: {
+    color: "#9ca3af",
+    fontSize: "16px",
+    lineHeight: "1.7",
+    maxWidth: "700px",
+  },
+  backButton: {
+    backgroundColor: "#1f2937",
+    color: "#ffffff",
+    border: "1px solid #374151",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  emptyCard: {
+    backgroundColor: "#111827",
+    border: "1px solid #1f2937",
+    borderRadius: "20px",
+    padding: "32px",
+    textAlign: "center",
+  },
+  emptyTitle: {
+    color: "#f9fafb",
+    fontSize: "24px",
+    marginBottom: "10px",
+  },
+  emptyText: {
+    color: "#9ca3af",
+    fontSize: "15px",
+  },
+  layout: {
+    display: "grid",
+    gridTemplateColumns: "1.7fr 1fr",
+    gap: "24px",
+    alignItems: "start",
+  },
+  itemsColumn: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "18px",
+  },
+  itemCard: {
+    display: "flex",
+    gap: "18px",
+    backgroundColor: "#111827",
+    border: "1px solid #1f2937",
+    borderRadius: "18px",
+    padding: "18px",
+  },
+  itemImage: {
+    width: "130px",
+    height: "130px",
+    objectFit: "cover",
+    borderRadius: "14px",
+    backgroundColor: "#0f172a",
+    flexShrink: 0,
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemTitle: {
+    color: "#f9fafb",
+    fontSize: "22px",
+    marginBottom: "10px",
+  },
+  itemMeta: {
+    color: "#d1d5db",
+    fontSize: "15px",
+    marginBottom: "8px",
+  },
+  quantityRow: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: "16px",
+  },
+  quantityInput: {
+    width: "90px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #374151",
+    backgroundColor: "#0f172a",
+    color: "#ffffff",
+    fontSize: "15px",
+  },
+  summaryCard: {
+    backgroundColor: "#111827",
+    border: "1px solid #1f2937",
+    borderRadius: "18px",
+    padding: "24px",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+  },
+  summaryTitle: {
+    color: "#f9fafb",
+    fontSize: "24px",
+    marginBottom: "14px",
+  },
+  summaryAmount: {
+    color: "#22c55e",
+    fontSize: "20px",
+    fontWeight: "700",
+    marginBottom: "18px",
+  },
+  addressInput: {
+    width: "100%",
+    padding: "12px 14px",
+    marginBottom: "18px",
+    borderRadius: "12px",
+    border: "1px solid #374151",
+    backgroundColor: "#0f172a",
+    color: "#ffffff",
+    fontSize: "15px",
+    boxSizing: "border-box",
+  },
+  summaryActions: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+  },
+  primaryButton: {
+    background: "linear-gradient(135deg, #2563eb, #3b82f6)",
+    color: "#ffffff",
+    border: "none",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  secondaryButton: {
+    backgroundColor: "#1f2937",
+    color: "#ffffff",
+    border: "1px solid #374151",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  removeButton: {
+    backgroundColor: "#dc2626",
+    color: "#ffffff",
+    border: "none",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+};
+
+export default CartPage;

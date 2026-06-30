@@ -1,0 +1,13 @@
+package com.ecommerce.paymentservice.service;
+
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+
+@Service
+public class ExchangeRateService {
+
+    public BigDecimal getUsdToLkrRate() {
+        return new BigDecimal("300.00");
+    }
+}

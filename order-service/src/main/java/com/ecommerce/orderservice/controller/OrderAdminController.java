@@ -1,0 +1,46 @@
+package com.ecommerce.orderservice.controller;
+
+import com.ecommerce.orderservice.dto.ApiResponse;
+import com.ecommerce.orderservice.dto.OrderResponse;
+import com.ecommerce.orderservice.dto.UpdateOrderStatusRequest;
+import com.ecommerce.orderservice.service.OrderService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/orders/admin")
+public class OrderAdminController {
+
+    private final OrderService orderService;
+
+    public OrderAdminController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<OrderResponse>> getAdminOrders(
+            @RequestHeader("X-Seller-Id") Long sellerId) {
+
+        return ResponseEntity.ok(orderService.getAdminOrders(sellerId));
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getAdminOrderById(
+            @RequestHeader("X-Seller-Id") Long sellerId,
+            @PathVariable Long orderId) {
+
+        return ResponseEntity.ok(orderService.getAdminOrderById(sellerId, orderId));
+    }
+
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<ApiResponse> updateOrderStatus(
+            @RequestHeader("X-Seller-Id") Long sellerId,
+            @PathVariable Long orderId,
+            @Valid @RequestBody UpdateOrderStatusRequest request) {
+
+        return ResponseEntity.ok(orderService.updateOrderStatus(sellerId, orderId, request));
+    }
+}

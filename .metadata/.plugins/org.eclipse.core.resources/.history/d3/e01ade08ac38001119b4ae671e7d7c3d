@@ -1,0 +1,42 @@
+import axios from "axios";
+
+const API_BASE_URL = "http://localhost:8080";
+
+const productApi = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+productApi.interceptors.request.use((config) => {
+  const accessToken = localStorage.getItem("accessToken");
+
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  return config;
+});
+
+export const getCategories = async () => {
+  const response = await productApi.get("/api/categories");
+  return response.data;
+};
+
+export const getMyProducts = async () => {
+  const response = await productApi.get("/api/admin/products/my-products");
+  return response.data;
+};
+
+export const createProduct = async (productData) => {
+  const response = await productApi.post("/api/admin/products", productData);
+  return response.data;
+};
+
+export const updateProduct = async (productId, productData) => {
+  const response = await productApi.put(`/api/admin/products/${productId}`, productData);
+  return response.data;
+};
+
+export const deleteProduct = async (productId) => {
+  const response = await productApi.delete(`/api/admin/products/${productId}`);
+  return response.data;
+};

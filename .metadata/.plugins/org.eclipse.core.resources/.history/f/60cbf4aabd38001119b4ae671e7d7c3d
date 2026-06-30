@@ -1,0 +1,47 @@
+export function saveAuthData(data) {
+  localStorage.setItem('accessToken', data.accessToken)
+  localStorage.setItem('refreshToken', data.refreshToken)
+  localStorage.setItem('username', data.username)
+
+  const normalizedRole =
+    data.role === 'ROLE_ADMIN' ? 'ADMIN' :
+    data.role === 'ROLE_USER' ? 'USER' :
+    data.role
+
+  localStorage.setItem('role', normalizedRole)
+}
+
+export function clearAuthData() {
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+  localStorage.removeItem('role')
+  localStorage.removeItem('username')
+}
+
+export function getAccessToken() {
+  return localStorage.getItem('accessToken')
+}
+
+export function getRefreshToken() {
+  return localStorage.getItem('refreshToken')
+}
+
+export function getUsername() {
+  return localStorage.getItem('username')
+}
+
+export function getRole() {
+  return localStorage.getItem('role')
+}
+
+export function isAdmin() {
+  return getRole() === 'ADMIN'
+}
+
+export function isUser() {
+  return getRole() === 'USER'
+}
+
+export function isLoggedIn() {
+  return !!getAccessToken()
+}

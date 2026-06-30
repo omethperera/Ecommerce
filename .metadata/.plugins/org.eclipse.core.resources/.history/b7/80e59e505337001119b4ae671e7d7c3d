@@ -1,0 +1,5 @@
+package com.ecommerce.userservice.dto.request;
+
+public class UserProfileCreateRequest {
+
+}

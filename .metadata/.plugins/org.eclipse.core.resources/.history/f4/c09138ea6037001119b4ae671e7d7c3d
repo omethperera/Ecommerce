@@ -1,0 +1,5 @@
+package com.ecommerce.adminservice.entity;
+
+public class Admin {
+
+}

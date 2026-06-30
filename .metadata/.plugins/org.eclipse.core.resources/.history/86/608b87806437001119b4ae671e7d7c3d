@@ -1,0 +1,61 @@
+package com.ecommerce.authservice.controller;
+
+import com.ecommerce.authservice.dto.LoginRequest;
+import com.ecommerce.authservice.dto.LoginResponse;
+import com.ecommerce.authservice.dto.UserRegisterRequest;
+import com.ecommerce.authservice.dto.RefreshTokenRequest;
+import com.ecommerce.authservice.dto.RefreshTokenResponse;
+import com.ecommerce.authservice.service.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    //register user
+    @PostMapping("/register/user")
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegisterRequest request) {
+        String response = authService.registerUser(request);
+
+        if (response.equals("Username already exists") || response.equals("Email already exists")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+    
+    //user login
+    @PostMapping("/login/user")
+    public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequest request) {
+    	LoginResponse response = authService.loginUser(request);
+
+        if (response == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+        }
+
+        return ResponseEntity.ok(response);
+    
+    }
+    
+    // new access token from existing refresh token
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        RefreshTokenResponse response = authService.refreshAccessToken(request);
+
+        if (response == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired refresh token");
+        }
+
+        return ResponseEntity.ok(response);
+    }
+    
+}

@@ -1,0 +1,13 @@
+package com.ecommerce.paymentservice.client;
+
+import com.ecommerce.paymentservice.dto.OrderPaymentDetailsResponse;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+@FeignClient(name = "order-service")
+public interface OrderServiceClient {
+
+    @GetMapping("/api/orders/internal/{orderId}")
+    OrderPaymentDetailsResponse getOrderDetailsForPayment(@PathVariable("orderId") Long orderId);
+}

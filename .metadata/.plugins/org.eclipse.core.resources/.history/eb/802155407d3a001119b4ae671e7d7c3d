@@ -1,0 +1,121 @@
+package com.ecommerce.paymentservice.service;
+
+import com.ecommerce.paymentservice.client.OrderServiceClient;
+import com.ecommerce.paymentservice.dto.OrderPaymentDetailsResponse;
+import com.ecommerce.paymentservice.dto.PaymentInitiateRequest;
+import com.ecommerce.paymentservice.dto.PaymentInitiateResponse;
+import com.ecommerce.paymentservice.dto.PaymentResponse;
+import com.ecommerce.paymentservice.dto.PaymentSuccessRequest;
+import com.ecommerce.paymentservice.entity.Payment;
+import com.ecommerce.paymentservice.enums.PaymentStatus;
+import com.ecommerce.paymentservice.repository.PaymentRepository;
+import org.springframework.stereotype.Service;
+
+@Service
+public class PaymentService {
+
+    private final PaymentRepository paymentRepository;
+    private final OrderServiceClient orderServiceClient;
+
+    public PaymentService(PaymentRepository paymentRepository, OrderServiceClient orderServiceClient) {
+        this.paymentRepository = paymentRepository;
+        this.orderServiceClient = orderServiceClient;
+    }
+
+    public PaymentResponse getPaymentByOrderId(Long orderId) {
+        Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
+
+        if (payment == null) {
+            return null;
+        }
+
+        PaymentResponse response = new PaymentResponse();
+        response.setId(payment.getId());
+        response.setOrderId(payment.getOrderId());
+        response.setUserId(payment.getUserId());
+        response.setEmail(payment.getEmail());
+        response.setAmount(payment.getAmount());
+        response.setPaymentStatus(payment.getPaymentStatus().name());
+        response.setGatewayName(payment.getGatewayName());
+        response.setGatewayPaymentId(payment.getGatewayPaymentId());
+        response.setCreatedAt(payment.getCreatedAt());
+        response.setUpdatedAt(payment.getUpdatedAt());
+        response.setPaidAt(payment.getPaidAt());
+
+        return response;
+    }
+
+    public PaymentInitiateResponse initiatePayment(PaymentInitiateRequest request) {
+        OrderPaymentDetailsResponse order = orderServiceClient.getOrderDetailsForPayment(request.getOrderId());
+
+        if (order == null) {
+            throw new RuntimeException("Order not found");
+        }
+
+        if (!"PENDING".equalsIgnoreCase(order.getPaymentStatus())) {
+            throw new RuntimeException("Order payment status is not PENDING");
+        }
+
+        if (!"PENDING_PAYMENT".equalsIgnoreCase(order.getOrderStatus())) {
+            throw new RuntimeException("Order is not in PENDING_PAYMENT state");
+        }
+
+        Payment existingPayment = paymentRepository.findByOrderId(request.getOrderId()).orElse(null);
+        if (existingPayment != null) {
+            throw new RuntimeException("Payment already exists for this order");
+        }
+
+        Payment payment = new Payment();
+        payment.setOrderId(order.getOrderId());
+        payment.setUserId(order.getUserId());
+        payment.setEmail(request.getEmail());
+        payment.setAmount(order.getTotalAmount());
+        payment.setPaymentStatus(PaymentStatus.PENDING);
+        payment.setGatewayName("PAYHERE");
+        payment.setCreatedAt(java.time.LocalDateTime.now());
+        payment.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        PaymentInitiateResponse response = new PaymentInitiateResponse();
+        response.setPaymentId(savedPayment.getId());
+        response.setOrderId(savedPayment.getOrderId());
+        response.setAmount(savedPayment.getAmount());
+        response.setPaymentStatus(savedPayment.getPaymentStatus().name());
+        response.setGatewayName(savedPayment.getGatewayName());
+
+        return response;
+    }
+    
+    public PaymentResponse markPaymentSuccess(PaymentSuccessRequest request) {
+        Payment payment = paymentRepository.findByOrderId(request.getOrderId()).orElse(null);
+
+        if (payment == null) {
+            throw new RuntimeException("Payment not found for this order");
+        }
+
+        payment.setPaymentStatus(PaymentStatus.SUCCESS);
+        payment.setGatewayPaymentId(request.getPaymentReference());
+        payment.setPaidAt(java.time.LocalDateTime.now());
+        payment.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        orderServiceClient.handlePaymentSuccess(request);
+
+        PaymentResponse response = new PaymentResponse();
+        response.setId(savedPayment.getId());
+        response.setOrderId(savedPayment.getOrderId());
+        response.setUserId(savedPayment.getUserId());
+        response.setEmail(savedPayment.getEmail());
+        response.setAmount(savedPayment.getAmount());
+        response.setPaymentStatus(savedPayment.getPaymentStatus().name());
+        response.setGatewayName(savedPayment.getGatewayName());
+        response.setGatewayPaymentId(savedPayment.getGatewayPaymentId());
+        response.setCreatedAt(savedPayment.getCreatedAt());
+        response.setUpdatedAt(savedPayment.getUpdatedAt());
+        response.setPaidAt(savedPayment.getPaidAt());
+
+        return response;
+    }
+}

@@ -1,0 +1,50 @@
+package com.ecommerce.paymentservice.controller;
+
+import com.ecommerce.paymentservice.dto.PaymentInitiateRequest;
+import com.ecommerce.paymentservice.dto.PaymentInitiateResponse;
+import com.ecommerce.paymentservice.dto.PaymentResponse;
+import com.ecommerce.paymentservice.service.PaymentService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/payments")
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    public PaymentController(PaymentService paymentService) {
+        this.paymentService = paymentService;
+    }
+
+    @GetMapping("/order/{orderId}")
+    public ResponseEntity<?> getPaymentByOrderId(@PathVariable Long orderId) {
+        PaymentResponse payment = paymentService.getPaymentByOrderId(orderId);
+
+        if (payment == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(payment);
+    }
+
+    @PostMapping("/initiate")
+    public ResponseEntity<?> initiatePayment(@RequestBody PaymentInitiateRequest request) {
+        try {
+            PaymentInitiateResponse response = paymentService.initiatePayment(request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @PostMapping("/simulate-success")
+    public ResponseEntity<?> simulatePaymentSuccess(@RequestBody PaymentSuccessRequest request) {
+        try {
+            PaymentResponse response = paymentService.markPaymentSuccess(request);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+}

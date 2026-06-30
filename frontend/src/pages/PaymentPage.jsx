@@ -1,0 +1,221 @@
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
+
+function PaymentPage() {
+  const { orderId } = useParams();
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(false);
+  const [paymentData, setPaymentData] = useState(null);
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("email") || "";
+    setEmail(storedEmail);
+  }, []);
+
+  const handleInitiatePayment = async () => {
+    if (!email.trim()) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setSubmitting(true);
+
+      const token = localStorage.getItem("accessToken");
+
+      const response = await axios.post(
+        "http://localhost:8080/api/payments/initiate",
+        {
+          orderId: Number(orderId),
+          email: email.trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setPaymentData(response.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setSubmitting(false);
+    }
+  };
+
+  const handleProceedToPayPal = () => {
+    if (!paymentData?.approveUrl) {
+      return;
+    }
+
+    localStorage.setItem("paypal_order_id", paymentData.paypalOrderId);
+    localStorage.setItem("payment_order_id", paymentData.orderId);
+    window.location.href = paymentData.approveUrl;
+  };
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <button style={styles.backButton} onClick={() => navigate("/user/cart")}>
+          Back to Cart
+        </button>
+
+        <div style={styles.card}>
+          <p style={styles.badge}>Buyer Payment</p>
+          <h1 style={styles.title}>Payment Page</h1>
+          <p style={styles.subtitle}>Order ID: {orderId}</p>
+
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Confirmation Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={styles.input}
+              placeholder="Enter confirmation email"
+            />
+          </div>
+
+          {loading ? (
+            <p style={styles.infoText}>Preparing payment...</p>
+          ) : paymentData ? (
+            <div style={styles.summaryCard}>
+              <h3 style={styles.summaryTitle}>Payment Summary</h3>
+              <p style={styles.summaryText}>Order ID: {paymentData.orderId}</p>
+              <p style={styles.summaryText}>
+                Original Amount: Rs. {paymentData.originalAmountLkr}
+              </p>
+              <p style={styles.summaryText}>
+                PayPal Amount: {paymentData.currency} {paymentData.amount}
+              </p>
+
+              <button
+                style={styles.primaryButton}
+                onClick={handleProceedToPayPal}
+                disabled={submitting}
+              >
+                Pay with PayPal
+              </button>
+            </div>
+          ) : (
+            <div style={styles.summaryCard}>
+              <p style={styles.infoText}>Enter your email and prepare the payment.</p>
+              <button
+                style={styles.primaryButton}
+                onClick={handleInitiatePayment}
+                disabled={submitting}
+              >
+                Continue to Payment
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "linear-gradient(135deg, #0b1020, #111827)",
+    padding: "24px",
+  },
+  container: {
+    maxWidth: "860px",
+    margin: "0 auto",
+  },
+  backButton: {
+    backgroundColor: "#1f2937",
+    color: "#ffffff",
+    border: "1px solid #374151",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    marginBottom: "20px",
+  },
+  card: {
+    backgroundColor: "#111827",
+    border: "1px solid #1f2937",
+    borderRadius: "20px",
+    padding: "28px",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+  },
+  badge: {
+    color: "#60a5fa",
+    fontSize: "13px",
+    marginBottom: "10px",
+    letterSpacing: "0.5px",
+  },
+  title: {
+    color: "#f9fafb",
+    fontSize: "36px",
+    fontWeight: "700",
+    marginBottom: "8px",
+  },
+  subtitle: {
+    color: "#9ca3af",
+    fontSize: "16px",
+    marginBottom: "24px",
+  },
+  fieldGroup: {
+    marginBottom: "24px",
+  },
+  label: {
+    display: "block",
+    color: "#d1d5db",
+    marginBottom: "8px",
+    fontSize: "14px",
+  },
+  input: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1px solid #374151",
+    backgroundColor: "#0f172a",
+    color: "#ffffff",
+    fontSize: "15px",
+    boxSizing: "border-box",
+  },
+  summaryCard: {
+    backgroundColor: "#0f172a",
+    border: "1px solid #1f2937",
+    borderRadius: "16px",
+    padding: "22px",
+  },
+  summaryTitle: {
+    color: "#f9fafb",
+    fontSize: "22px",
+    marginBottom: "14px",
+  },
+  summaryText: {
+    color: "#d1d5db",
+    fontSize: "15px",
+    marginBottom: "10px",
+  },
+  infoText: {
+    color: "#d1d5db",
+    fontSize: "15px",
+  },
+  primaryButton: {
+    background: "linear-gradient(135deg, #2563eb, #3b82f6)",
+    color: "#ffffff",
+    border: "none",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontSize: "15px",
+    fontWeight: "600",
+    cursor: "pointer",
+    marginTop: "14px",
+  },
+};
+
+export default PaymentPage;

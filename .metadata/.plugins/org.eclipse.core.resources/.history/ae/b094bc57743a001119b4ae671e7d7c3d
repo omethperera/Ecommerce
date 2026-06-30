@@ -1,0 +1,28 @@
+package com.ecommerce.paymentservice.controller;
+
+import com.ecommerce.paymentservice.dto.PaymentResponse;
+import com.ecommerce.paymentservice.service.PaymentService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/payments")
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    public PaymentController(PaymentService paymentService) {
+        this.paymentService = paymentService;
+    }
+
+    @GetMapping("/order/{orderId}")
+    public ResponseEntity<?> getPaymentByOrderId(@PathVariable Long orderId) {
+        PaymentResponse payment = paymentService.getPaymentByOrderId(orderId);
+
+        if (payment == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(payment);
+    }
+}

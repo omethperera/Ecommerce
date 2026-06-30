@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+    <fullyQualifiedTypeName name="com.ecommerce.userservice.dto.UserProfileResponse"/>
+    <fullyQualifiedTypeName name="org.springframework.beans.factory.annotation.Autowired"/>
+    <fullyQualifiedTypeName name="com.ecommerce.authservice.dto.AdminRegisterRequest"/>
+    <fullyQualifiedTypeName name="com.ecommerce.orderservice.dto.CartItemResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.orderservice.dto.CartResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.orderservice.dto.OrderItemResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.orderservice.dto.OrderResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.PaymentInitiateResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.OrderPaymentDetailsResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.PaymentInitiateRequest"/>
+    <fullyQualifiedTypeName name="com.ecommerce.orderservice.dto.OrderPaymentDetailsResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.PaymentSuccessRequest"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.PaymentFailedRequest"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.config.PayHereHashUtil"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.config.PayHereConfig"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.PayHerePaymentResponse"/>
+    <fullyQualifiedTypeName name="com.ecommerce.paymentservice.dto.PayHereNotifyRequest"/>
+    <fullyQualifiedTypeName name="java.math.BigDecimal"/>
+    <fullyQualifiedTypeName name="com.ecommerce.orderservice.dto.CheckoutResponse"/>
+</qualifiedTypeNameHistroy>

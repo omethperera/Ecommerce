@@ -1,0 +1,16 @@
+import { Routes, Route } from 'react-router-dom'
+import HomePage from './pages/HomePage'
+import SignupChoicePage from './pages/SignupChoicePage'
+import LoginChoicePage from './pages/LoginChoicePage'
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/signup" element={<SignupChoicePage />} />
+      <Route path="/login" element={<LoginChoicePage />} />
+    </Routes>
+  )
+}
+
+export default App

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;frontend/src/pages/CartPgae.jsx&apos; to &apos;CartPage.jsx&apos;" description="Rename resource &apos;CartPgae.jsx&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/pages/CartPgae.jsx" name="CartPage.jsx" stamp="1776356158478" updateReferences="true"/>
+</session>

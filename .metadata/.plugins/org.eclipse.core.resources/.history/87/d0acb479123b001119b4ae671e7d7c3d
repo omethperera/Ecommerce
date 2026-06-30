@@ -1,0 +1,26 @@
+spring.application.name=payment-service
+server.port=8085
+
+# MySQL
+spring.datasource.url=jdbc:mysql://localhost:3306/ecommerce_payment_db
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# JPA
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect
+
+# Eureka
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+eureka.instance.prefer-ip-address=true
+
+# Paypal
+paypal.client-id=AcxpZFsPCXa9jmkiJs4Hn7e_z0nOg76QrW2pyF-3dcrOUAsiBdRgLarRJevjpyrsytdacLJGZ9ymZJC4
+paypal.client-secret=EBcuna62FWDtF6Dt75NW9vO3uA4dsuHB_NcUl0XLTwftG79wACPG43fN4cYFbSK2U2hlq5qfBTizpQKS
+paypal.base-url=https://api-m.sandbox.paypal.com
+paypal.return-url=http://localhost:5173/payment/success
+paypal.cancel-url=http://localhost:5173/payment/cancel
+paypal.currency=USD

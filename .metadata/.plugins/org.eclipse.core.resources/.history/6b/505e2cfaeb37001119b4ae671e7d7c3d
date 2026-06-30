@@ -1,0 +1,146 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+function UserLoginPage() {
+  const navigate = useNavigate()
+
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+  })
+
+  const [loading, setLoading] = useState(false)
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const response = await fetch('http://localhost:8080/api/auth/login/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(form),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+
+        // store tokens
+        localStorage.setItem('accessToken', data.accessToken)
+        localStorage.setItem('refreshToken', data.refreshToken)
+
+        alert('Login successful')
+
+        // temporary redirect
+        navigate('/user-dashboard')
+      } else {
+        const msg = await response.text()
+        alert(msg || 'Login failed')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error connecting to backend')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2 style={styles.title}>User Login</h2>
+
+        <form style={styles.form} onSubmit={handleSubmit}>
+          <input
+            style={styles.input}
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            required
+          />
+
+          <input
+            style={styles.input}
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+
+          <button style={styles.primaryButton} disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
+
+          <button
+            style={styles.secondaryButton}
+            type="button"
+            onClick={() => navigate('/login')}
+          >
+            Back
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #0b1020, #111827)',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '420px',
+    backgroundColor: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '18px',
+    padding: '30px',
+  },
+  title: {
+    color: '#f9fafb',
+    marginBottom: '20px',
+    textAlign: 'center',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+  },
+  input: {
+    backgroundColor: '#0f172a',
+    border: '1px solid #374151',
+    color: '#fff',
+    padding: '12px',
+    borderRadius: '10px',
+  },
+  primaryButton: {
+    background: '#2563eb',
+    color: '#fff',
+    padding: '12px',
+    borderRadius: '10px',
+    border: 'none',
+  },
+  secondaryButton: {
+    background: '#1f2937',
+    color: '#d1d5db',
+    padding: '12px',
+    borderRadius: '10px',
+    border: 'none',
+  },
+}
+
+export default UserLoginPage

@@ -1,0 +1,459 @@
+package com.ecommerce.orderservice.service;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.ecommerce.orderservice.dto.AddToCartRequest;
+import com.ecommerce.orderservice.dto.ApiResponse;
+import com.ecommerce.orderservice.dto.CartItemResponse;
+import com.ecommerce.orderservice.dto.CartResponse;
+import com.ecommerce.orderservice.dto.CheckoutRequest;
+import com.ecommerce.orderservice.dto.OrderItemResponse;
+import com.ecommerce.orderservice.dto.OrderResponse;
+import com.ecommerce.orderservice.dto.PaymentFailedRequest;
+import com.ecommerce.orderservice.dto.PaymentSuccessRequest;
+import com.ecommerce.orderservice.dto.ProductResponse;
+import com.ecommerce.orderservice.dto.StockReduceItemRequest;
+import com.ecommerce.orderservice.dto.StockReduceRequest;
+import com.ecommerce.orderservice.dto.UpdateCartItemRequest;
+import com.ecommerce.orderservice.dto.UpdateOrderStatusRequest;
+import com.ecommerce.orderservice.entity.Order;
+import com.ecommerce.orderservice.entity.OrderItem;
+import com.ecommerce.orderservice.enums.OrderStatus;
+import com.ecommerce.orderservice.enums.PaymentStatus;
+import com.ecommerce.orderservice.feign.ProductFeignClient;
+import com.ecommerce.orderservice.repository.OrderItemRepository;
+import com.ecommerce.orderservice.repository.OrderRepository;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductFeignClient productFeignClient;
+
+    public OrderService(OrderRepository orderRepository,
+                        OrderItemRepository orderItemRepository,
+                        ProductFeignClient productFeignClient) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.productFeignClient = productFeignClient;
+    }
+
+    public ApiResponse addToCart(Long userId, AddToCartRequest request) {
+        Order cart = orderRepository.findFirstByUserIdAndOrderStatus(userId, OrderStatus.CART)
+                .orElseGet(() -> {
+                    Order newCart = new Order();
+                    newCart.setUserId(userId);
+                    newCart.setPaymentStatus(PaymentStatus.PENDING);
+                    newCart.setOrderStatus(OrderStatus.CART);
+                    newCart.setTotalAmount(BigDecimal.ZERO);
+                    Order savedCart = orderRepository.save(newCart);
+                    savedCart.setOrderCode(generateOrderCode(savedCart.getId()));
+                    return orderRepository.save(savedCart);
+                });
+
+        ProductResponse product = productFeignClient.getProductById(request.getProductId());
+
+        if (product == null) {
+            throw new RuntimeException("Product not found");
+        }
+
+        if (!Boolean.TRUE.equals(product.getIsActive())) {
+            throw new RuntimeException("Product is inactive");
+        }
+
+        if (product.getStockQuantity() == null || product.getStockQuantity() < request.getQuantity()) {
+            throw new RuntimeException("Insufficient stock");
+        }
+
+        List<OrderItem> existingItems = orderItemRepository.findByOrder_Id(cart.getId());
+        OrderItem existingItem = null;
+
+        for (OrderItem item : existingItems) {
+            if (item.getProductId().equals(request.getProductId())) {
+                existingItem = item;
+                break;
+            }
+        }
+
+        if (existingItem != null) {
+            int newQuantity = existingItem.getQuantity() + request.getQuantity();
+
+            if (product.getStockQuantity() < newQuantity) {
+                throw new RuntimeException("Insufficient stock");
+            }
+
+            existingItem.setQuantity(newQuantity);
+            existingItem.setUnitPrice(product.getPrice());
+            existingItem.setProductName(product.getName());
+            existingItem.setProductImageUrl(product.getImageUrl());
+            existingItem.setSellerId(product.getSellerId());
+            existingItem.setSubtotal(calculateSubtotal(product.getPrice(), newQuantity));
+            orderItemRepository.save(existingItem);
+        } else {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(cart);
+            orderItem.setProductId(product.getId());
+            orderItem.setSellerId(product.getSellerId());
+            orderItem.setProductName(product.getName());
+            orderItem.setProductImageUrl(product.getImageUrl());
+            orderItem.setUnitPrice(product.getPrice());
+            orderItem.setQuantity(request.getQuantity());
+            orderItem.setSubtotal(calculateSubtotal(product.getPrice(), request.getQuantity()));
+            orderItemRepository.save(orderItem);
+        }
+
+        List<OrderItem> updatedItems = orderItemRepository.findByOrder_Id(cart.getId());
+        cart.setTotalAmount(calculateTotalAmount(updatedItems));
+        orderRepository.save(cart);
+
+        return new ApiResponse("Item added to cart successfully");
+    }
+
+    public CartResponse getCart(Long userId) {
+        Order cart = orderRepository.findFirstByUserIdAndOrderStatus(userId, OrderStatus.CART)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        List<OrderItem> items = orderItemRepository.findByOrder_Id(cart.getId());
+        List<CartItemResponse> itemResponses = new ArrayList<>();
+
+        for (OrderItem item : items) {
+            CartItemResponse itemResponse = new CartItemResponse();
+            itemResponse.setItemId(item.getId());
+            itemResponse.setProductId(item.getProductId());
+            itemResponse.setSellerId(item.getSellerId());
+            itemResponse.setProductName(item.getProductName());
+            itemResponse.setProductImageUrl(item.getProductImageUrl());
+            itemResponse.setUnitPrice(item.getUnitPrice());
+            itemResponse.setQuantity(item.getQuantity());
+            itemResponse.setSubtotal(item.getSubtotal());
+            itemResponses.add(itemResponse);
+        }
+
+        CartResponse response = new CartResponse();
+        response.setOrderId(cart.getId());
+        response.setOrderCode(cart.getOrderCode());
+        response.setUserId(cart.getUserId());
+        response.setPaymentStatus(cart.getPaymentStatus().name());
+        response.setOrderStatus(cart.getOrderStatus().name());
+        response.setTotalAmount(cart.getTotalAmount());
+        response.setItems(itemResponses);
+
+        return response;
+    }
+    
+    private OrderItem getCartItemByIdAndUserId(Long userId, Long itemId) {
+        OrderItem item = orderItemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Cart item not found"));
+
+        if (item.getOrder() == null || !item.getOrder().getUserId().equals(userId)) {
+            throw new RuntimeException("Cart item does not belong to this user");
+        }
+
+        if (item.getOrder().getOrderStatus() != OrderStatus.CART) {
+            throw new RuntimeException("Item is not in active cart");
+        }
+
+        return item;
+    }
+
+    private OrderResponse mapToOrderResponse(Order order, List<OrderItem> items) {
+        List<OrderItemResponse> itemResponses = new ArrayList<>();
+
+        for (OrderItem item : items) {
+            OrderItemResponse itemResponse = new OrderItemResponse();
+            itemResponse.setItemId(item.getId());
+            itemResponse.setProductId(item.getProductId());
+            itemResponse.setSellerId(item.getSellerId());
+            itemResponse.setProductName(item.getProductName());
+            itemResponse.setProductImageUrl(item.getProductImageUrl());
+            itemResponse.setUnitPrice(item.getUnitPrice());
+            itemResponse.setQuantity(item.getQuantity());
+            itemResponse.setSubtotal(item.getSubtotal());
+            itemResponses.add(itemResponse);
+        }
+
+        OrderResponse response = new OrderResponse();
+        response.setOrderId(order.getId());
+        response.setOrderCode(order.getOrderCode());
+        response.setUserId(order.getUserId());
+        response.setPaymentStatus(order.getPaymentStatus().name());
+        response.setOrderStatus(order.getOrderStatus().name());
+        response.setTotalAmount(order.getTotalAmount());
+        response.setShippingAddress(order.getShippingAddress());
+        response.setPaymentReference(order.getPaymentReference());
+        response.setCreatedAt(order.getCreatedAt());
+        response.setUpdatedAt(order.getUpdatedAt());
+        response.setItems(itemResponses);
+
+        return response;
+    }
+
+    public ApiResponse updateCartItem(Long userId, Long itemId, UpdateCartItemRequest request) {
+        OrderItem item = getCartItemByIdAndUserId(userId, itemId);
+
+        ProductResponse product = productFeignClient.getProductById(item.getProductId());
+
+        if (product == null) {
+            throw new RuntimeException("Product not found");
+        }
+
+        if (!Boolean.TRUE.equals(product.getIsActive())) {
+            throw new RuntimeException("Product is inactive");
+        }
+
+        if (product.getStockQuantity() < request.getQuantity()) {
+            throw new RuntimeException("Insufficient stock");
+        }
+
+        item.setQuantity(request.getQuantity());
+        item.setUnitPrice(product.getPrice());
+        item.setProductName(product.getName());
+        item.setProductImageUrl(product.getImageUrl());
+        item.setSellerId(product.getSellerId());
+        item.setSubtotal(calculateSubtotal(product.getPrice(), request.getQuantity()));
+        orderItemRepository.save(item);
+
+        Order cart = item.getOrder();
+        List<OrderItem> items = orderItemRepository.findByOrder_Id(cart.getId());
+        cart.setTotalAmount(calculateTotalAmount(items));
+        orderRepository.save(cart);
+
+        return new ApiResponse("Cart item updated successfully");
+    }
+
+    public ApiResponse removeCartItem(Long userId, Long itemId) {
+        OrderItem item = getCartItemByIdAndUserId(userId, itemId);
+        Order cart = item.getOrder();
+
+        orderItemRepository.delete(item);
+
+        List<OrderItem> remainingItems = orderItemRepository.findByOrder_Id(cart.getId());
+        cart.setTotalAmount(calculateTotalAmount(remainingItems));
+        orderRepository.save(cart);
+
+        return new ApiResponse("Cart item removed successfully");
+    }
+
+    public ApiResponse clearCart(Long userId) {
+        Order cart = orderRepository.findFirstByUserIdAndOrderStatus(userId, OrderStatus.CART)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        List<OrderItem> items = orderItemRepository.findByOrder_Id(cart.getId());
+        orderItemRepository.deleteAll(items);
+
+        cart.setTotalAmount(BigDecimal.ZERO);
+        orderRepository.save(cart);
+
+        return new ApiResponse("Cart cleared successfully");
+    }
+
+    public ApiResponse checkout(Long userId, CheckoutRequest request) {
+        Order cart = orderRepository.findFirstByUserIdAndOrderStatus(userId, OrderStatus.CART)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        List<OrderItem> items = orderItemRepository.findByOrder_Id(cart.getId());
+
+        if (items.isEmpty()) {
+            throw new RuntimeException("Cart is empty");
+        }
+
+        for (OrderItem item : items) {
+            ProductResponse product = productFeignClient.getProductById(item.getProductId());
+
+            if (product == null) {
+                throw new RuntimeException("Product not found for id: " + item.getProductId());
+            }
+
+            if (!Boolean.TRUE.equals(product.getIsActive())) {
+                throw new RuntimeException("Product is inactive: " + item.getProductId());
+            }
+
+            if (product.getStockQuantity() < item.getQuantity()) {
+                throw new RuntimeException("Insufficient stock for product id: " + item.getProductId());
+            }
+
+            item.setUnitPrice(product.getPrice());
+            item.setProductName(product.getName());
+            item.setProductImageUrl(product.getImageUrl());
+            item.setSellerId(product.getSellerId());
+            item.setSubtotal(calculateSubtotal(product.getPrice(), item.getQuantity()));
+            orderItemRepository.save(item);
+        }
+
+        List<OrderItem> updatedItems = orderItemRepository.findByOrder_Id(cart.getId());
+        cart.setTotalAmount(calculateTotalAmount(updatedItems));
+        cart.setShippingAddress(request.getShippingAddress());
+        cart.setPaymentStatus(PaymentStatus.PENDING);
+        cart.setOrderStatus(OrderStatus.PENDING_PAYMENT);
+        orderRepository.save(cart);
+
+        return new ApiResponse("Checkout completed. Proceed to payment.");
+    }
+
+    public List<OrderResponse> getMyCurrentOrders(Long userId) {
+        List<Order> orders = orderRepository.findAllByUserIdAndOrderStatus(userId, OrderStatus.PENDING_DISPATCH);
+        List<OrderResponse> responseList = new ArrayList<>();
+
+        for (Order order : orders) {
+            List<OrderItem> items = orderItemRepository.findByOrder_Id(order.getId());
+            responseList.add(mapToOrderResponse(order, items));
+        }
+
+        return responseList;
+    }
+
+    public List<OrderResponse> getMyOrderHistory(Long userId) {
+        List<Order> orders = orderRepository.findAllByUserIdAndOrderStatus(userId, OrderStatus.DISPATCHED);
+        List<OrderResponse> responseList = new ArrayList<>();
+
+        for (Order order : orders) {
+            List<OrderItem> items = orderItemRepository.findByOrder_Id(order.getId());
+            responseList.add(mapToOrderResponse(order, items));
+        }
+
+        return responseList;
+    }
+
+    public OrderResponse getOrderByIdForUser(Long userId, Long orderId) {
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        List<OrderItem> items = orderItemRepository.findByOrder_Id(order.getId());
+        return mapToOrderResponse(order, items);
+    }
+
+    public ApiResponse cancelOrder(Long userId, Long orderId) {
+        Order order = orderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new RuntimeException("Paid orders cannot be cancelled");
+        }
+
+        if (order.getOrderStatus() != OrderStatus.CART && order.getOrderStatus() != OrderStatus.PENDING_PAYMENT) {
+            throw new RuntimeException("Only cart or pending payment orders can be cancelled");
+        }
+
+        order.setOrderStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        return new ApiResponse("Order cancelled successfully");
+    }
+
+    public List<OrderResponse> getAdminOrders(Long sellerId) {
+        List<Order> paidOrders = orderRepository.findByPaymentStatus(PaymentStatus.PAID);
+        List<OrderResponse> responseList = new ArrayList<>();
+
+        for (Order order : paidOrders) {
+            List<OrderItem> sellerItems = orderItemRepository.findByOrder_IdAndSellerId(order.getId(), sellerId);
+
+            if (!sellerItems.isEmpty()) {
+                responseList.add(mapToOrderResponse(order, sellerItems));
+            }
+        }
+
+        return responseList;
+    }
+
+    public OrderResponse getAdminOrderById(Long sellerId, Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        List<OrderItem> sellerItems = orderItemRepository.findByOrder_IdAndSellerId(orderId, sellerId);
+
+        if (sellerItems.isEmpty()) {
+            throw new RuntimeException("No order items found for this seller");
+        }
+
+        return mapToOrderResponse(order, sellerItems);
+    }
+
+    public ApiResponse updateOrderStatus(Long sellerId, Long orderId, UpdateOrderStatusRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getPaymentStatus() != PaymentStatus.PAID) {
+            throw new RuntimeException("Only paid orders can be updated");
+        }
+
+        List<OrderItem> sellerItems = orderItemRepository.findByOrder_IdAndSellerId(orderId, sellerId);
+
+        if (sellerItems.isEmpty()) {
+            throw new RuntimeException("This seller is not allowed to update this order");
+        }
+
+        if (!"DISPATCHED".equalsIgnoreCase(request.getStatus())) {
+            throw new RuntimeException("Only DISPATCHED status update is allowed");
+        }
+
+        order.setOrderStatus(OrderStatus.DISPATCHED);
+        orderRepository.save(order);
+
+        return new ApiResponse("Order status updated successfully");
+    }
+
+    public ApiResponse handlePaymentSuccess(PaymentSuccessRequest request) {
+        Order order = orderRepository.findById(request.getOrderId())
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getPaymentStatus() == PaymentStatus.PAID) {
+            return new ApiResponse("Payment already processed");
+        }
+
+        List<OrderItem> items = orderItemRepository.findByOrder_Id(order.getId());
+
+        StockReduceRequest stockReduceRequest = new StockReduceRequest();
+        List<StockReduceItemRequest> stockItems = new ArrayList<>();
+
+        for (OrderItem item : items) {
+            StockReduceItemRequest stockItem = new StockReduceItemRequest();
+            stockItem.setProductId(item.getProductId());
+            stockItem.setQuantity(item.getQuantity());
+            stockItems.add(stockItem);
+        }
+
+        stockReduceRequest.setItems(stockItems);
+        productFeignClient.reduceStock(stockReduceRequest);
+
+        order.setPaymentStatus(PaymentStatus.PAID);
+        order.setOrderStatus(OrderStatus.PENDING_DISPATCH);
+        order.setPaymentReference(request.getPaymentReference());
+        orderRepository.save(order);
+
+        return new ApiResponse("Payment marked successful");
+    }
+
+    public ApiResponse handlePaymentFailed(PaymentFailedRequest request) {
+        Order order = orderRepository.findById(request.getOrderId())
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        order.setPaymentStatus(PaymentStatus.FAILED);
+        order.setOrderStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        return new ApiResponse("Payment marked failed");
+    }
+
+    private String generateOrderCode(Long orderId) {
+        return "ORD-" + String.format("%06d", orderId);
+    }
+
+    private BigDecimal calculateSubtotal(BigDecimal unitPrice, Integer quantity) {
+        return unitPrice.multiply(BigDecimal.valueOf(quantity));
+    }
+
+    private BigDecimal calculateTotalAmount(List<OrderItem> items) {
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (OrderItem item : items) {
+            total = total.add(item.getSubtotal());
+        }
+
+        return total;
+    }
+}

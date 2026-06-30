@@ -1,0 +1,46 @@
+spring.application.name=api-gateway
+server.port=8080
+
+# JWT — must match auth-service exactly
+app.jwt.secret=ZWMyb21tZXJjZV9zZWNyZXRfa2V5X2NoYW5nZV90aGlzX2luX3Byb2R1Y3Rpb24xMjM0NTY3ODkw
+
+# Eureka
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
+eureka.instance.prefer-ip-address=true
+
+# ── Routes (mvc prefix — required for gateway-server-webmvc) ──────────────────
+spring.cloud.gateway.mvc.routes[0].id=auth-service
+spring.cloud.gateway.mvc.routes[0].uri=lb://auth-service
+spring.cloud.gateway.mvc.routes[0].predicates[0]=Path=/api/auth/**
+
+spring.cloud.gateway.mvc.routes[1].id=user-service
+spring.cloud.gateway.mvc.routes[1].uri=lb://user-service
+spring.cloud.gateway.mvc.routes[1].predicates[0]=Path=/api/profiles/**,/api/addresses/**
+
+spring.cloud.gateway.mvc.routes[2].id=product-service
+spring.cloud.gateway.mvc.routes[2].uri=lb://product-service
+spring.cloud.gateway.mvc.routes[2].predicates[0]=Path=/api/products/**,/api/categories/**,/api/admin/products/**,/api/admin/categories/**
+
+spring.cloud.gateway.mvc.routes[3].id=order-service
+spring.cloud.gateway.mvc.routes[3].uri=lb://order-service
+spring.cloud.gateway.mvc.routes[3].predicates[0]=Path=/api/orders/**
+
+spring.cloud.gateway.mvc.routes[4].id=payment-service
+spring.cloud.gateway.mvc.routes[4].uri=lb://payment-service
+spring.cloud.gateway.mvc.routes[4].predicates[0]=Path=/api/payments/**
+
+spring.cloud.gateway.mvc.routes[5].id=delivery-service
+spring.cloud.gateway.mvc.routes[5].uri=lb://delivery-service
+spring.cloud.gateway.mvc.routes[5].predicates[0]=Path=/api/delivery/**
+
+spring.cloud.gateway.mvc.routes[6].id=review-service
+spring.cloud.gateway.mvc.routes[6].uri=lb://review-service
+spring.cloud.gateway.mvc.routes[6].predicates[0]=Path=/api/reviews/**
+
+spring.cloud.gateway.mvc.routes[7].id=admin-service
+spring.cloud.gateway.mvc.routes[7].uri=lb://admin-service
+spring.cloud.gateway.mvc.routes[7].predicates[0]=Path=/api/admins/**
+
+spring.cloud.gateway.mvc.routes[8].id=notification-service
+spring.cloud.gateway.mvc.routes[8].uri=lb://notification-service
+spring.cloud.gateway.mvc.routes[8].predicates[0]=Path=/api/notifications/**

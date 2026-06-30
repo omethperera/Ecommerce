@@ -1,0 +1,91 @@
+package com.ecommerce.paymentservice.dto;
+
+import java.math.BigDecimal;
+
+public class PayHereNotifyRequest {
+
+    private String merchantId;
+    private String orderId;
+    private String paymentId;
+    private BigDecimal payhereAmount;
+    private String payhereCurrency;
+    private String statusCode;
+    private String md5sig;
+    private String method;
+    private String statusMessage;
+
+    public PayHereNotifyRequest() {
+    }
+
+    public String getMerchantId() {
+        return merchantId;
+    }
+
+    public void setMerchantId(String merchantId) {
+        this.merchantId = merchantId;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
+    }
+
+    public String getPaymentId() {
+        return paymentId;
+    }
+
+    public void setPaymentId(String paymentId) {
+        this.paymentId = paymentId;
+    }
+
+    public BigDecimal getPayhereAmount() {
+        return payhereAmount;
+    }
+
+    public void setPayhereAmount(BigDecimal payhereAmount) {
+        this.payhereAmount = payhereAmount;
+    }
+
+    public String getPayhereCurrency() {
+        return payhereCurrency;
+    }
+
+    public void setPayhereCurrency(String payhereCurrency) {
+        this.payhereCurrency = payhereCurrency;
+    }
+
+    public String getStatusCode() {
+        return statusCode;
+    }
+
+    public void setStatusCode(String statusCode) {
+        this.statusCode = statusCode;
+    }
+
+    public String getMd5sig() {
+        return md5sig;
+    }
+
+    public void setMd5sig(String md5sig) {
+        this.md5sig = md5sig;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public String getStatusMessage() {
+        return statusMessage;
+    }
+
+    public void setStatusMessage(String statusMessage) {
+        this.statusMessage = statusMessage;
+    }
+}

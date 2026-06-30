@@ -1,0 +1,196 @@
+package com.ecommerce.paymentservice.service;
+
+import com.ecommerce.paymentservice.client.OrderServiceClient;
+import com.ecommerce.paymentservice.config.PayPalConfig;
+import com.ecommerce.paymentservice.dto.OrderPaymentDetailsResponse;
+import com.ecommerce.paymentservice.dto.PayPalPaymentResponse;
+import com.ecommerce.paymentservice.dto.PaymentFailedRequest;
+import com.ecommerce.paymentservice.dto.PaymentInitiateRequest;
+import com.ecommerce.paymentservice.dto.PaymentResponse;
+import com.ecommerce.paymentservice.dto.PaymentSuccessRequest;
+import com.ecommerce.paymentservice.entity.Payment;
+import com.ecommerce.paymentservice.enums.PaymentStatus;
+import com.ecommerce.paymentservice.repository.PaymentRepository;
+import org.springframework.stereotype.Service;
+import com.ecommerce.paymentservice.dto.PayPalTokenResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+@Service
+public class PaymentService {
+
+    private final PaymentRepository paymentRepository;
+    private final OrderServiceClient orderServiceClient;
+    private final PayPalConfig payPalConfig;
+    private final WebClient webClient;
+
+    public PaymentService(PaymentRepository paymentRepository, OrderServiceClient orderServiceClient, PayPalConfig payPalConfig, WebClient webClient) {
+    		this.paymentRepository = paymentRepository;
+    		this.orderServiceClient = orderServiceClient;
+    		this.payPalConfig = payPalConfig;
+    		this.webClient = webClient;
+}
+
+    public PaymentResponse getPaymentByOrderId(Long orderId) {
+        Payment payment = paymentRepository.findByOrderId(orderId).orElse(null);
+
+        if (payment == null) {
+            return null;
+        }
+
+        PaymentResponse response = new PaymentResponse();
+        response.setId(payment.getId());
+        response.setOrderId(payment.getOrderId());
+        response.setUserId(payment.getUserId());
+        response.setEmail(payment.getEmail());
+        response.setAmount(payment.getAmount());
+        response.setPaymentStatus(payment.getPaymentStatus().name());
+        response.setGatewayName(payment.getGatewayName());
+        response.setGatewayPaymentId(payment.getGatewayPaymentId());
+        response.setCreatedAt(payment.getCreatedAt());
+        response.setUpdatedAt(payment.getUpdatedAt());
+        response.setPaidAt(payment.getPaidAt());
+
+        return response;
+    }
+
+    public PayPalPaymentResponse  initiatePayment(PaymentInitiateRequest request) {
+        OrderPaymentDetailsResponse order = orderServiceClient.getOrderDetailsForPayment(request.getOrderId());
+
+        if (order == null) {
+            throw new RuntimeException("Order not found");
+        }
+
+        if (!"PENDING".equalsIgnoreCase(order.getPaymentStatus())) {
+            throw new RuntimeException("Order payment status is not PENDING");
+        }
+
+        if (!"PENDING_PAYMENT".equalsIgnoreCase(order.getOrderStatus())) {
+            throw new RuntimeException("Order is not in PENDING_PAYMENT state");
+        }
+
+        Payment existingPayment = paymentRepository.findByOrderId(request.getOrderId()).orElse(null);
+        if (existingPayment != null) {
+            throw new RuntimeException("Payment already exists for this order");
+        }
+
+        Payment payment = new Payment();
+        payment.setOrderId(order.getOrderId());
+        payment.setUserId(order.getUserId());
+        payment.setEmail(request.getEmail());
+        payment.setAmount(order.getTotalAmount());
+        payment.setPaymentStatus(PaymentStatus.PENDING);
+        payment.setGatewayName("PAYPAL");
+        payment.setCreatedAt(java.time.LocalDateTime.now());
+        payment.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        PayPalPaymentResponse  response = new PayPalPaymentResponse ();
+        response.setPaymentId(savedPayment.getId());
+        response.setOrderId(savedPayment.getOrderId());
+
+        // temporary mapping until we create proper PayPal DTOs
+        response.setPaymentId(savedPayment.getId());
+        response.setOrderId(savedPayment.getOrderId());
+        response.setClientId(payPalConfig.getClientId());
+        response.setReturnUrl(payPalConfig.getReturnUrl());
+        response.setCancelUrl(payPalConfig.getCancelUrl());
+        response.setAmount(savedPayment.getAmount());
+        response.setCurrency(payPalConfig.getCurrency());
+        response.setPaypalOrderId(null);
+        response.setApproveUrl(null);
+
+        return response;
+    }
+
+    public PaymentResponse markPaymentSuccess(PaymentSuccessRequest request) {
+        Payment payment = paymentRepository.findByOrderId(request.getOrderId()).orElse(null);
+
+        if (payment == null) {
+            throw new RuntimeException("Payment not found for this order");
+        }
+
+        orderServiceClient.handlePaymentSuccess(request);
+
+        payment.setPaymentStatus(PaymentStatus.SUCCESS);
+        payment.setGatewayPaymentId(request.getPaymentReference());
+        payment.setPaidAt(java.time.LocalDateTime.now());
+        payment.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        PaymentResponse response = new PaymentResponse();
+        response.setId(savedPayment.getId());
+        response.setOrderId(savedPayment.getOrderId());
+        response.setUserId(savedPayment.getUserId());
+        response.setEmail(savedPayment.getEmail());
+        response.setAmount(savedPayment.getAmount());
+        response.setPaymentStatus(savedPayment.getPaymentStatus().name());
+        response.setGatewayName(savedPayment.getGatewayName());
+        response.setGatewayPaymentId(savedPayment.getGatewayPaymentId());
+        response.setCreatedAt(savedPayment.getCreatedAt());
+        response.setUpdatedAt(savedPayment.getUpdatedAt());
+        response.setPaidAt(savedPayment.getPaidAt());
+
+        return response;
+    }
+
+    public PaymentResponse markPaymentFailed(PaymentFailedRequest request) {
+        Payment payment = paymentRepository.findByOrderId(request.getOrderId()).orElse(null);
+
+        if (payment == null) {
+            throw new RuntimeException("Payment not found for this order");
+        }
+
+        orderServiceClient.handlePaymentFailed(request);
+
+        payment.setPaymentStatus(PaymentStatus.FAILED);
+        payment.setGatewayPaymentId(null);
+        payment.setPaidAt(null);
+        payment.setUpdatedAt(java.time.LocalDateTime.now());
+
+        Payment savedPayment = paymentRepository.save(payment);
+
+        PaymentResponse response = new PaymentResponse();
+        response.setId(savedPayment.getId());
+        response.setOrderId(savedPayment.getOrderId());
+        response.setUserId(savedPayment.getUserId());
+        response.setEmail(savedPayment.getEmail());
+        response.setAmount(savedPayment.getAmount());
+        response.setPaymentStatus(savedPayment.getPaymentStatus().name());
+        response.setGatewayName(savedPayment.getGatewayName());
+        response.setGatewayPaymentId(savedPayment.getGatewayPaymentId());
+        response.setCreatedAt(savedPayment.getCreatedAt());
+        response.setUpdatedAt(savedPayment.getUpdatedAt());
+        response.setPaidAt(savedPayment.getPaidAt());
+
+        return response;
+    }
+    
+    public String getPayPalAccessToken() {
+        String credentials = payPalConfig.getClientId() + ":" + payPalConfig.getClientSecret();
+        String encodedCredentials = Base64.getEncoder()
+                .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+
+        PayPalTokenResponse tokenResponse = webClient.post()
+                .uri(payPalConfig.getBaseUrl() + "/v1/oauth2/token")
+                .header(HttpHeaders.AUTHORIZATION, "Basic " + encodedCredentials)
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                .bodyValue("grant_type=client_credentials")
+                .retrieve()
+                .bodyToMono(PayPalTokenResponse.class)
+                .block();
+
+        if (tokenResponse == null || tokenResponse.getAccess_token() == null) {
+            throw new RuntimeException("Failed to get PayPal access token");
+        }
+
+        return tokenResponse.getAccess_token();
+    }
+
+}

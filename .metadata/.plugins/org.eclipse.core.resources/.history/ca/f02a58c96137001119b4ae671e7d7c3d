@@ -1,0 +1,5 @@
+package com.ecommerce.adminservice.service;
+
+public class AdminService {
+
+}

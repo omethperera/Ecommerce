@@ -1,0 +1,166 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { saveAuthData } from '../utils/auth'
+
+function AdminLoginPage() {
+  const navigate = useNavigate()
+
+  const [form, setForm] = useState({
+    username: '',
+    password: '',
+  })
+
+  const [loading, setLoading] = useState(false)
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const response = await fetch('http://localhost:8080/api/auth/login/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(form),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+		console.log(data)
+		console.log('Returned role:', data.role)
+
+        saveAuthData(data)
+
+        alert('Admin login successful. Returned role: ' + data.role)
+		if (data.role === 'ADMIN' || data.role === 'ROLE_ADMIN') {
+		  navigate('/admin-dashboard')
+		} else {
+		  navigate('/user-dashboard')
+		}
+      } else {
+        const msg = await response.text()
+        alert(msg || 'Admin login failed')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error connecting to backend')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2 style={styles.title}>Admin Login</h2>
+        <p style={styles.subtitle}>Sign in with your admin username and password</p>
+
+        <form style={styles.form} onSubmit={handleSubmit}>
+          <input
+            style={styles.input}
+            type="text"
+            name="username"
+            placeholder="Username"
+            value={form.username}
+            onChange={handleChange}
+            required
+          />
+
+          <input
+            style={styles.input}
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+
+          <button style={styles.primaryButton} type="submit" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login as Admin'}
+          </button>
+
+          <button
+            style={styles.secondaryButton}
+            type="button"
+            onClick={() => navigate('/login')}
+          >
+            Back
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #0b1020, #111827)',
+    padding: '20px',
+  },
+  card: {
+    width: '100%',
+    maxWidth: '420px',
+    backgroundColor: '#111827',
+    border: '1px solid #1f2937',
+    borderRadius: '18px',
+    padding: '36px 30px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
+  },
+  title: {
+    color: '#f9fafb',
+    marginBottom: '8px',
+    textAlign: 'center',
+    fontSize: '30px',
+    fontWeight: '700',
+  },
+  subtitle: {
+    color: '#9ca3af',
+    marginBottom: '24px',
+    textAlign: 'center',
+    fontSize: '15px',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+  },
+  input: {
+    backgroundColor: '#0f172a',
+    border: '1px solid #374151',
+    color: '#fff',
+    padding: '13px 14px',
+    borderRadius: '10px',
+    fontSize: '15px',
+    outline: 'none',
+  },
+  primaryButton: {
+    background: 'linear-gradient(135deg, #2563eb, #3b82f6)',
+    color: '#fff',
+    padding: '13px',
+    borderRadius: '10px',
+    border: 'none',
+    fontSize: '15px',
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    background: '#1f2937',
+    color: '#d1d5db',
+    padding: '13px',
+    borderRadius: '10px',
+    border: '1px solid #374151',
+    fontSize: '15px',
+    fontWeight: '600',
+  },
+}
+
+export default AdminLoginPage

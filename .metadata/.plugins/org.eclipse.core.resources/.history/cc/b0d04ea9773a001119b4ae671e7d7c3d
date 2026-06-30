@@ -1,0 +1,17 @@
+package com.ecommerce.paymentservice.dto;
+
+public class PaymentInitiateRequest {
+
+    private Long orderId;
+
+    public PaymentInitiateRequest() {
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+}

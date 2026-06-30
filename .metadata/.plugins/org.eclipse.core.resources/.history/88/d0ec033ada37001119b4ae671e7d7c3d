@@ -1,0 +1,22 @@
+import { Routes, Route } from 'react-router-dom'
+import HomePage from './pages/HomePage'
+import SignupChoicePage from './pages/SignupChoicePage'
+import LoginChoicePage from './pages/LoginChoicePage'
+import UserSignupPage from './pages/UserSignupPage'
+import AdminSignupPage from './pages/AdminSignupPage'
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/signup" element={<SignupChoicePage />} />
+      <Route path="/login" element={<LoginChoicePage />} />
+
+      {/* NEW */}
+      <Route path="/signup/user" element={<UserSignupPage />} />
+      <Route path="/signup/admin" element={<AdminSignupPage />} />
+    </Routes>
+  )
+}
+
+export default App

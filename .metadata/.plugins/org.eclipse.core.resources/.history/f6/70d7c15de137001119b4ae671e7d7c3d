@@ -1,0 +1,81 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+function UserSignupPage() {
+  const navigate = useNavigate()
+
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
+    address: ''
+  })
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    try {
+      const response = await fetch('http://localhost:8080/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(form)
+      })
+
+      if (response.ok) {
+        alert('User registered successfully')
+        navigate('/login')
+      } else {
+        alert('Registration failed')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Error connecting to server')
+    }
+  }
+
+  return (
+    <div style={styles.page}>
+      <form style={styles.card} onSubmit={handleSubmit}>
+        <h2>User Sign Up</h2>
+
+        <input name="firstName" placeholder="First Name" onChange={handleChange} required />
+        <input name="lastName" placeholder="Last Name" onChange={handleChange} required />
+        <input name="email" type="email" placeholder="Email" onChange={handleChange} required />
+        <input name="password" type="password" placeholder="Password" onChange={handleChange} required />
+        <input name="phone" placeholder="Phone" onChange={handleChange} />
+        <input name="address" placeholder="Address" onChange={handleChange} />
+
+        <button type="submit">Register</button>
+
+        <button type="button" onClick={() => navigate('/signup')}>
+          Back
+        </button>
+      </form>
+    </div>
+  )
+}
+
+const styles = {
+  page: {
+    minHeight: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  card: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    width: '300px'
+  }
+}
+
+export default UserSignupPage

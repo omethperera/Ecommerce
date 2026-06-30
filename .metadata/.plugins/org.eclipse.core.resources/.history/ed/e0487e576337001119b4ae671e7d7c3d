@@ -1,0 +1,5 @@
+package com.ecommerce.authservice.client;
+
+public class AdminServiceClient {
+
+}

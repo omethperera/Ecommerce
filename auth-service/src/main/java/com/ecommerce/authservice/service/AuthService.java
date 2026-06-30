@@ -1,0 +1,180 @@
+package com.ecommerce.authservice.service;
+
+import com.ecommerce.authservice.dto.LoginRequest;
+import com.ecommerce.authservice.dto.LoginResponse;
+import com.ecommerce.authservice.dto.RefreshTokenRequest;
+import com.ecommerce.authservice.dto.RefreshTokenResponse;
+import com.ecommerce.authservice.dto.UserRegisterRequest;
+import com.ecommerce.authservice.entity.RefreshToken;
+import com.ecommerce.authservice.entity.User;
+import com.ecommerce.authservice.repository.RefreshTokenRepository;
+import com.ecommerce.authservice.repository.UserRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.ecommerce.authservice.client.UserServiceClient;
+import com.ecommerce.authservice.dto.UserProfileCreateRequest;
+import com.ecommerce.authservice.client.AdminServiceClient;
+import com.ecommerce.authservice.dto.AdminProfileCreateRequest;
+import com.ecommerce.authservice.dto.AdminRegisterRequest;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+@Service
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final UserServiceClient userServiceClient;
+    
+    @Autowired
+    private AdminServiceClient adminServiceClient;
+
+    public AuthService(UserRepository userRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            UserServiceClient userServiceClient) {
+this.userRepository = userRepository;
+this.refreshTokenRepository = refreshTokenRepository;
+this.passwordEncoder = passwordEncoder;
+this.jwtService = jwtService;
+this.userServiceClient = userServiceClient;
+}
+
+  //user reg
+    public String registerUser(UserRegisterRequest request) {
+
+        if (userRepository.existsByUsername(request.getUsername())) {
+            return "Username already exists";
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return "Email already exists";
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole("ROLE_USER");
+        user.setIsActive(true);
+
+        userRepository.save(user);
+        
+        UserProfileCreateRequest profileRequest = new UserProfileCreateRequest();
+        profileRequest.setUserId(user.getId());
+        profileRequest.setUsername(user.getUsername());
+        profileRequest.setFirstName(request.getFirstName());
+        profileRequest.setLastName(request.getLastName());
+        profileRequest.setPhone(request.getPhone());
+        profileRequest.setProfilePictureUrl(request.getProfilePic());
+        profileRequest.setAddress(request.getAddress());
+
+        userServiceClient.createUserProfile(profileRequest);
+
+        return "User registered successfully";
+    }
+
+    //user-admin login
+    @Transactional
+    public LoginResponse loginUser(LoginRequest request) {
+        Optional<User> optionalUser = userRepository.findByUsername(request.getUsername());
+
+        if (optionalUser.isEmpty()) {
+            return null;
+        }
+
+        User user = optionalUser.get();
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            return null;
+        }
+
+        String accessToken = jwtService.generateAccessToken(user.getUsername(), user.getRole());
+        String refreshTokenString = jwtService.generateRefreshToken();
+
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setUserId(user.getId());
+        refreshToken.setToken(refreshTokenString);
+        refreshToken.setExpiryDate(
+                LocalDateTime.now().plusSeconds(jwtService.getRefreshTokenExpirationMs())
+        );
+
+        refreshTokenRepository.save(refreshToken);
+
+        return new LoginResponse(
+                user.getId(),
+                accessToken,
+                refreshTokenString,
+                "Bearer",
+                user.getUsername(),
+                user.getRole()
+        );
+    }
+    
+    @Transactional
+    public RefreshTokenResponse refreshAccessToken(RefreshTokenRequest request) {
+        Optional<RefreshToken> optionalRefreshToken =
+                refreshTokenRepository.findByToken(request.getRefreshToken());
+
+        if (optionalRefreshToken.isEmpty()) {
+            return null;
+        }
+
+        RefreshToken refreshToken = optionalRefreshToken.get();
+
+        if (refreshToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.deleteByUserId(refreshToken.getUserId());
+            return null;
+        }
+
+        Optional<User> optionalUser = userRepository.findById(refreshToken.getUserId());
+
+        if (optionalUser.isEmpty()) {
+            return null;
+        }
+
+        User user = optionalUser.get();
+
+        String newAccessToken = jwtService.generateAccessToken(user.getUsername(), user.getRole());
+
+        return new RefreshTokenResponse(newAccessToken, "Bearer");
+    }
+    
+    //admin reg
+    public String registerAdmin(AdminRegisterRequest request) {
+
+        // 1. Create User (same as normal registration)
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole("ROLE_ADMIN");
+        user.setUsername(request.getUsername());
+        
+        User savedUser = userRepository.save(user);
+
+        // 2. Prepare admin-service request
+        AdminProfileCreateRequest adminRequest = new AdminProfileCreateRequest();
+        adminRequest.setUserId(savedUser.getId());
+        adminRequest.setUsername(request.getUsername());
+        adminRequest.setFirstName(request.getFirstName());
+        adminRequest.setLastName(request.getLastName());
+        adminRequest.setAddress(request.getAddress());
+        adminRequest.setEmail(request.getEmail());
+        adminRequest.setProfilePic(request.getProfilePic());
+
+        // 3. Call admin-service
+        adminServiceClient.createAdminProfile(adminRequest);
+
+        return "Admin registered successfully";
+    }
+    
+}

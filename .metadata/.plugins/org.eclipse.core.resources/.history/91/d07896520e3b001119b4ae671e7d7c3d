@@ -1,0 +1,14 @@
+import { useParams } from "react-router-dom";
+
+function PaymentPage() {
+  const { orderId } = useParams();
+
+  return (
+    <div style={{ padding: "40px", color: "white", background: "#0b1020", minHeight: "100vh" }}>
+      <h1>Payment Page</h1>
+      <p>Order ID: {orderId}</p>
+    </div>
+  );
+}
+
+export default PaymentPage;

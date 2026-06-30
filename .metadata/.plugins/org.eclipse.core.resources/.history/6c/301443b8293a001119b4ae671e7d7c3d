@@ -1,0 +1,106 @@
+import axios from "axios";
+
+const BASE_URL = "http://localhost:8080/api/orders";
+
+export const getAuthToken = () => localStorage.getItem("token");
+export const getUserId = () => localStorage.getItem("userId");
+export const getSellerId = () => localStorage.getItem("sellerId");
+
+export const addToCart = async (userId, data) => {
+  return axios.post(`${BASE_URL}/cart/items`, data, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const getCart = async (userId) => {
+  return axios.get(`${BASE_URL}/cart`, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const updateCartItem = async (userId, itemId, data) => {
+  return axios.put(`${BASE_URL}/cart/items/${itemId}`, data, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const removeCartItem = async (userId, itemId) => {
+  return axios.delete(`${BASE_URL}/cart/items/${itemId}`, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const clearCart = async (userId) => {
+  return axios.delete(`${BASE_URL}/cart`, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const checkout = async (userId, data) => {
+  return axios.post(`${BASE_URL}/checkout`, data, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const getCurrentOrders = async (userId) => {
+  return axios.get(`${BASE_URL}/my/current`, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const getOrderHistory = async (userId) => {
+  return axios.get(`${BASE_URL}/my/history`, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const cancelOrder = async (userId, orderId) => {
+  return axios.put(`${BASE_URL}/${orderId}/cancel`, {}, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-User-Id": userId,
+    },
+  });
+};
+
+export const getAdminOrders = async (sellerId) => {
+  return axios.get(`${BASE_URL}/admin`, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-Seller-Id": sellerId,
+    },
+  });
+};
+
+export const updateAdminOrderStatus = async (sellerId, orderId, data) => {
+  return axios.put(`${BASE_URL}/admin/${orderId}/status`, data, {
+    headers: {
+      Authorization: `Bearer ${getAuthToken()}`,
+      "X-Seller-Id": sellerId,
+    },
+  });
+};

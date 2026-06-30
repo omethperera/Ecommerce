@@ -1,0 +1,141 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  getCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart,
+  checkout,
+} from "../api/orderApi";
+
+function CartPage() {
+  const [cart, setCart] = useState(null);
+  const [shippingAddress, setShippingAddress] = useState("");
+  const navigate = useNavigate();
+  const userId = localStorage.getItem("userId");
+
+  const loadCart = async () => {
+    try {
+      const response = await getCart(userId);
+      setCart(response.data);
+    } catch (error) {
+      console.error(error);
+      setCart(null);
+    }
+  };
+
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const response = await getCart(userId);
+        setCart(response.data);
+      } catch (error) {
+        console.error(error);
+        setCart(null);
+      }
+    };
+
+    fetchCart();
+  }, [userId]);
+
+  const handleUpdateQuantity = async (itemId, quantity) => {
+    try {
+      await updateCartItem(userId, itemId, { quantity: Number(quantity) });
+      loadCart();
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to update quantity");
+    }
+  };
+
+  const handleRemoveItem = async (itemId) => {
+    try {
+      await removeCartItem(userId, itemId);
+      loadCart();
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to remove item");
+    }
+  };
+
+  const handleClearCart = async () => {
+    try {
+      await clearCart(userId);
+      loadCart();
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to clear cart");
+    }
+  };
+
+  const handleCheckout = async () => {
+    try {
+      await checkout(userId, { shippingAddress });
+      alert("Checkout completed. Next step is payment integration.");
+      navigate("/user/orders/current");
+    } catch (error) {
+      alert(error.response?.data?.message || "Checkout failed");
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <h2>My Cart</h2>
+
+      {!cart || !cart.items || cart.items.length === 0 ? (
+        <p>Your cart is empty.</p>
+      ) : (
+        <>
+          {cart.items.map((item) => (
+            <div
+              key={item.itemId}
+              style={{
+                border: "1px solid #ccc",
+                borderRadius: "8px",
+                padding: "12px",
+                marginBottom: "12px",
+              }}
+            >
+              <img
+                src={item.productImageUrl}
+                alt={item.productName}
+                width="100"
+                style={{ objectFit: "cover" }}
+              />
+              <h4>{item.productName}</h4>
+              <p>Unit Price: {item.unitPrice}</p>
+              <p>Subtotal: {item.subtotal}</p>
+
+              <input
+                type="number"
+                min="1"
+                value={item.quantity}
+                onChange={(e) => handleUpdateQuantity(item.itemId, e.target.value)}
+              />
+
+              <div style={{ marginTop: "10px" }}>
+                <button onClick={() => handleRemoveItem(item.itemId)}>Remove</button>
+              </div>
+            </div>
+          ))}
+
+          <h3>Total Amount: {cart.totalAmount}</h3>
+
+          <input
+            type="text"
+            placeholder="Enter shipping address"
+            value={shippingAddress}
+            onChange={(e) => setShippingAddress(e.target.value)}
+            style={{ width: "300px", padding: "8px", marginBottom: "10px" }}
+          />
+
+          <div>
+            <button onClick={handleCheckout} style={{ marginRight: "10px" }}>
+              Checkout
+            </button>
+            <button onClick={handleClearCart}>Clear Cart</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default CartPage;

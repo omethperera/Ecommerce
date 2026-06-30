@@ -1,0 +1,186 @@
+package com.ecommerce.orderservice.service;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.ecommerce.orderservice.dto.AddToCartRequest;
+import com.ecommerce.orderservice.dto.ApiResponse;
+import com.ecommerce.orderservice.dto.CheckoutRequest;
+import com.ecommerce.orderservice.dto.PaymentFailedRequest;
+import com.ecommerce.orderservice.dto.PaymentSuccessRequest;
+import com.ecommerce.orderservice.dto.ProductResponse;
+import com.ecommerce.orderservice.dto.StockReduceItemRequest;
+import com.ecommerce.orderservice.dto.StockReduceRequest;
+import com.ecommerce.orderservice.dto.UpdateCartItemRequest;
+import com.ecommerce.orderservice.dto.UpdateOrderStatusRequest;
+import com.ecommerce.orderservice.entity.Order;
+import com.ecommerce.orderservice.entity.OrderItem;
+import com.ecommerce.orderservice.enums.OrderStatus;
+import com.ecommerce.orderservice.enums.PaymentStatus;
+import com.ecommerce.orderservice.feign.ProductFeignClient;
+import com.ecommerce.orderservice.repository.OrderItemRepository;
+import com.ecommerce.orderservice.repository.OrderRepository;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductFeignClient productFeignClient;
+
+    public OrderService(OrderRepository orderRepository,
+                        OrderItemRepository orderItemRepository,
+                        ProductFeignClient productFeignClient) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.productFeignClient = productFeignClient;
+    }
+
+    public ApiResponse addToCart(Long userId, AddToCartRequest request) {
+        Order cart = orderRepository.findFirstByUserIdAndOrderStatus(userId, OrderStatus.CART)
+                .orElseGet(() -> {
+                    Order newCart = new Order();
+                    newCart.setUserId(userId);
+                    newCart.setPaymentStatus(PaymentStatus.PENDING);
+                    newCart.setOrderStatus(OrderStatus.CART);
+                    newCart.setTotalAmount(BigDecimal.ZERO);
+                    Order savedCart = orderRepository.save(newCart);
+                    savedCart.setOrderCode(generateOrderCode(savedCart.getId()));
+                    return orderRepository.save(savedCart);
+                });
+
+        ProductResponse product = productFeignClient.getProductById(request.getProductId());
+
+        if (product == null) {
+            throw new RuntimeException("Product not found");
+        }
+
+        if (!Boolean.TRUE.equals(product.getIsActive())) {
+            throw new RuntimeException("Product is inactive");
+        }
+
+        if (product.getStockQuantity() == null || product.getStockQuantity() < request.getQuantity()) {
+            throw new RuntimeException("Insufficient stock");
+        }
+
+        List<OrderItem> existingItems = orderItemRepository.findByOrder_Id(cart.getId());
+        OrderItem existingItem = null;
+
+        for (OrderItem item : existingItems) {
+            if (item.getProductId().equals(request.getProductId())) {
+                existingItem = item;
+                break;
+            }
+        }
+
+        if (existingItem != null) {
+            int newQuantity = existingItem.getQuantity() + request.getQuantity();
+
+            if (product.getStockQuantity() < newQuantity) {
+                throw new RuntimeException("Insufficient stock");
+            }
+
+            existingItem.setQuantity(newQuantity);
+            existingItem.setUnitPrice(product.getPrice());
+            existingItem.setProductName(product.getName());
+            existingItem.setProductImageUrl(product.getImageUrl());
+            existingItem.setSellerId(product.getSellerId());
+            existingItem.setSubtotal(calculateSubtotal(product.getPrice(), newQuantity));
+            orderItemRepository.save(existingItem);
+        } else {
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(cart);
+            orderItem.setProductId(product.getId());
+            orderItem.setSellerId(product.getSellerId());
+            orderItem.setProductName(product.getName());
+            orderItem.setProductImageUrl(product.getImageUrl());
+            orderItem.setUnitPrice(product.getPrice());
+            orderItem.setQuantity(request.getQuantity());
+            orderItem.setSubtotal(calculateSubtotal(product.getPrice(), request.getQuantity()));
+            orderItemRepository.save(orderItem);
+        }
+
+        List<OrderItem> updatedItems = orderItemRepository.findByOrder_Id(cart.getId());
+        cart.setTotalAmount(calculateTotalAmount(updatedItems));
+        orderRepository.save(cart);
+
+        return new ApiResponse("Item added to cart successfully");
+    }
+
+    public Object getCart(Long userId) {
+        return null;
+    }
+
+    public ApiResponse updateCartItem(Long userId, Long itemId, UpdateCartItemRequest request) {
+        return new ApiResponse("TODO");
+    }
+
+    public ApiResponse removeCartItem(Long userId, Long itemId) {
+        return new ApiResponse("TODO");
+    }
+
+    public ApiResponse clearCart(Long userId) {
+        return new ApiResponse("TODO");
+    }
+
+    public ApiResponse checkout(Long userId, CheckoutRequest request) {
+        return new ApiResponse("TODO");
+    }
+
+    public Object getMyCurrentOrders(Long userId) {
+        return null;
+    }
+
+    public Object getMyOrderHistory(Long userId) {
+        return null;
+    }
+
+    public Object getOrderByIdForUser(Long userId, Long orderId) {
+        return null;
+    }
+
+    public ApiResponse cancelOrder(Long userId, Long orderId) {
+        return new ApiResponse("TODO");
+    }
+
+    public Object getAdminOrders(Long sellerId) {
+        return null;
+    }
+
+    public Object getAdminOrderById(Long sellerId, Long orderId) {
+        return null;
+    }
+
+    public ApiResponse updateOrderStatus(Long orderId, UpdateOrderStatusRequest request) {
+        return new ApiResponse("TODO");
+    }
+
+    public ApiResponse handlePaymentSuccess(PaymentSuccessRequest request) {
+        return new ApiResponse("TODO");
+    }
+
+    public ApiResponse handlePaymentFailed(PaymentFailedRequest request) {
+        return new ApiResponse("TODO");
+    }
+
+    private String generateOrderCode(Long orderId) {
+        return "ORD-" + String.format("%06d", orderId);
+    }
+
+    private BigDecimal calculateSubtotal(BigDecimal unitPrice, Integer quantity) {
+        return unitPrice.multiply(BigDecimal.valueOf(quantity));
+    }
+
+    private BigDecimal calculateTotalAmount(List<OrderItem> items) {
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (OrderItem item : items) {
+            total = total.add(item.getSubtotal());
+        }
+
+        return total;
+    }
+}
