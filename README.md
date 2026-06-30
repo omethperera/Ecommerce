@@ -40,7 +40,6 @@ This is a **distributed e-commerce platform** showcasing modern Java backend arc
 
 ### Communication Patterns
 - **Synchronous:** OpenFeign (service-to-service calls)
-- **Asynchronous:** RabbitMQ (event-driven messaging)
 - **Client Routing:** Eureka-based load balancing (`lb://service-name`)
 
 ---
@@ -53,14 +52,13 @@ This is a **distributed e-commerce platform** showcasing modern Java backend arc
 - ✓ Service discovery with Eureka
 - ✓ Database isolation per service
 - ✓ Inter-service communication (Feign clients)
-- ✓ Asynchronous messaging with AMQP
 - ✓ React-based frontend with modern build tooling
 
 ### 🚀 Demonstrates Expertise In
 - **System Design:** Microservices patterns, service decoupling, scalability
 - **Spring Ecosystem:** Spring Boot, Spring Cloud, Spring Security, Spring Data JPA
 - **Backend Development:** REST APIs, JWT authentication, database design
-- **Distributed Systems:** Service discovery, API gateways, async messaging
+- **Distributed Systems:** Service discovery, API gateways
 - **Frontend:** React, Vite, modern JavaScript tooling
 - **DevOps-Ready:** Multi-module Maven project, containerizable architecture
 
