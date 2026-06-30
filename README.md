@@ -1,67 +1,109 @@
 # Ecommerce Microservices Platform
 
-A production-ready **Spring Boot microservices architecture** for building scalable e-commerce applications with cloud-native patterns, service discovery, and API gateway routing.
+A **production-ready Spring Boot microservices architecture** for scalable e-commerce applications with service discovery, API gateway, and JWT authentication.
 
-## 🎯 Project Overview
+## 🎯 What This Project Shows
 
-This is a **distributed e-commerce platform** showcasing modern Java backend architecture with:
-- **Microservices Architecture** – Decoupled services handling independent domains
-- **API Gateway** – Centralized routing and JWT authentication
-- **Service Discovery** – Eureka-based service registry
-- **Spring Cloud** – Enterprise-grade distributed computing patterns
-- **React Frontend** – Modern UI with Vite bundler
-- **MySQL Database** – Persistent data layer across services
+- **Microservices Architecture** – Decoupled services with independent databases
+- **Spring Cloud Ecosystem** – Eureka service discovery, API Gateway, OpenFeign clients
+- **Distributed Systems** – Async messaging (RabbitMQ), inter-service communication
+- **Security** – JWT authentication, Spring Security, encrypted token validation
+- **Full-Stack** – Java backend + React frontend with modern tooling
+- **Scalability** – Stateless services, load balancing, event-driven design
 
-**Technology Stack:**
-- **Backend:** Java 17, Spring Boot 3.5+, Spring Cloud 2025.0.1
-- **Frontend:** React, Vite, JavaScript
-- **Infrastructure:** Netflix Eureka, Spring Cloud Gateway
-- **Authentication:** JWT (JJWT 0.13.0)
-- **Database:** MySQL 8.0+
-- **Build:** Maven 3.8+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Java 17, Spring Boot 3.5+, Spring Cloud 2025.0.1 |
+| **API** | Spring Cloud Gateway, REST APIs, OpenFeign |
+| **Auth** | JWT (JJWT 0.13), Spring Security |
+| **Database** | MySQL 8.0+ (service isolation) |
+| **Async** | RabbitMQ, Spring AMQP |
+| **Frontend** | React, Vite, JavaScript |
+| **Build** | Maven 3.8+ |
+
+## 📦 Core Services
+
+```
+api-gateway/          → Request routing & JWT validation
+eureka-server/        → Service registry & discovery
+auth-service/         → User authentication & token generation
+product-service/      → Product catalog management
+order-service/        → Order processing with async events
+payment-service/      → Payment processing with WebFlux
+notification-service/ → Event-driven notifications
+review-service/       → Product reviews & ratings
+admin-service/        → Admin operations
+frontend/             → React UI with Vite
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Java 17+, Maven 3.8+, MySQL 8.0+, Node.js 18+
+
+### Run Services
+
+```bash
+# Start Eureka Server
+cd eureka-server
+mvn spring-boot:run
+
+# In separate terminals, start services
+cd api-gateway && mvn spring-boot:run
+cd auth-service && mvn spring-boot:run
+cd product-service && mvn spring-boot:run
+cd order-service && mvn spring-boot:run
+cd payment-service && mvn spring-boot:run
+
+# Start Frontend
+cd frontend && npm install && npm run dev
+```
+
+**Access Points:**
+- Eureka Dashboard: `http://localhost:8761`
+- Frontend: `http://localhost:5173`
+- API Gateway: `http://localhost:8080`
+
+## 🔐 Key Features
+
+✅ JWT token-based authentication with refresh mechanism  
+✅ API Gateway with centralized routing and request filtering  
+✅ Service-to-service communication with Feign clients  
+✅ Asynchronous event processing with RabbitMQ  
+✅ Microservices with database per service isolation  
+✅ Eureka-based dynamic service discovery  
+✅ RESTful API design with proper HTTP status codes  
+✅ Database transaction management & JPA ORM  
+
+## 💡 Architecture Highlights
+
+**Synchronous Communication:**
+```java
+@FeignClient("product-service")
+public interface ProductClient {
+    @GetMapping("/api/products/{id}")
+    ProductDTO getProduct(@PathVariable Long id);
+}
+```
+
+**Asynchronous Messaging:**
+```java
+rabbitTemplate.convertAndSend("order.exchange", "order.created", event);
+
+@RabbitListener(queues = "notification.queue")
+public void handleOrderCreated(OrderEvent event) { ... }
+```
+
+## 📊 Why This Matters
+
+- **Enterprise-Grade:** Real-world microservices patterns (service discovery, API gateways)
+- **Scalability:** Stateless design, horizontal scaling, load balancing
+- **Best Practices:** Clean code, proper separation of concerns
+- **Full-Stack Skills:** Backend architecture + frontend integration
+- **DevOps-Ready:** Multi-module Maven, containerizable, cloud-native design
 
 ---
 
-## 🏗️ System Architecture
-
-### Core Microservices
-
-| Service | Purpose | Tech Stack |
-|---------|---------|-----------|
-| **API Gateway** | Request routing, JWT validation, load balancing | Spring Cloud Gateway WebMVC, JJWT |
-| **Auth Service** | User authentication, token generation | Spring Security, JWT |
-| **Product Service** | Product catalog management | Spring Data JPA, REST API |
-| **Order Service** | Order processing & fulfillment | Spring Data JPA, RabbitMQ, OpenFeign |
-| **Payment Service** | Payment processing & transactions | Spring Data JPA, WebFlux, OpenFeign |
-| **Notification Service** | Email/SMS notifications | Event-driven architecture |
-| **Review Service** | Product reviews & ratings | Spring Data JPA, REST API |
-| **Admin Service** | Administrative operations | OpenFeign client communication |
-| **Eureka Server** | Service discovery & registration | Netflix Eureka Server |
-
-### Communication Patterns
-- **Synchronous:** OpenFeign (service-to-service calls)
-- **Client Routing:** Eureka-based load balancing (`lb://service-name`)
-
----
-
-## 📊 Key Features
-
-### ✅ Implemented
-- ✓ Multi-tenant microservices architecture
-- ✓ Centralized API Gateway with JWT middleware
-- ✓ Service discovery with Eureka
-- ✓ Database isolation per service
-- ✓ Inter-service communication (Feign clients)
-- ✓ React-based frontend with modern build tooling
-
-### 🚀 Demonstrates Expertise In
-- **System Design:** Microservices patterns, service decoupling, scalability
-- **Spring Ecosystem:** Spring Boot, Spring Cloud, Spring Security, Spring Data JPA
-- **Backend Development:** REST APIs, JWT authentication, database design
-- **Distributed Systems:** Service discovery, API gateways
-- **Frontend:** React, Vite, modern JavaScript tooling
-- **DevOps-Ready:** Multi-module Maven project, containerizable architecture
-
----
-
-## 📦 Project Structure
+**Built by:** [@omethperera](https://github.com/omethperera)
